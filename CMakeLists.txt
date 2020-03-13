@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(src/include)
 
 # add source directory 
-file(GLOB SOURCES "src/cpp/*.cpp")
+file(GLOB_RECURSE SOURCES src/cpp/*.cpp)
 
 # add the executable
-add_executable(WiFiMicrophoneReceiver ${SOURCES})
+add_executable(WiFiMicrophoneReceiver ${SOURCES} src/WiFiMicrophoneReceiver.cpp)
