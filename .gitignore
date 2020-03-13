@@ -12,3 +12,6 @@ _deps
 
 # builds
 build
+
+# executables 
+WiFiMicrophoneReceiver
