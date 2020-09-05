@@ -9,12 +9,22 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
+#include <math.h>
 
 #include <jack/jack.h>
 
-jack_port_t *input_port;
 jack_port_t *output_port;
 jack_client_t *client;
+
+double theta1 = 0.0;
+double theta2 = 0.0;
+double theta3 = 0.0;
+
+#define FREQ1 261.63
+#define FREQ2 329.63
+#define FREQ3 392.00
+
 
 /**
  * The process callback for this JACK application is called in a
@@ -26,12 +36,15 @@ jack_client_t *client;
  */
 int process (jack_nframes_t nframes, void *arg)
 {
-	jack_default_audio_sample_t *in, *out;
+    jack_default_audio_sample_t *out;
 	
-	in = (jack_default_audio_sample_t*)jack_port_get_buffer (input_port, nframes);
 	out = (jack_default_audio_sample_t*)jack_port_get_buffer (output_port, nframes);
-	memcpy (out, in,
-		sizeof (jack_default_audio_sample_t) * nframes);
+    for(int i = 0; i < nframes; i++) {
+        out[i] = sin(theta1) * 0.33333 + sin(theta2) * 0.33333 + sin(theta3) * 0.33333;
+        theta1 += (2 * M_PI) / 48000.0 * FREQ1;
+        theta2 += (2 * M_PI) / 48000.0 * FREQ2;
+        theta3 += (2 * M_PI) / 48000.0 * FREQ3;
+    }
 
 	return 0;      
 }
@@ -47,15 +60,13 @@ void jack_shutdown (void *arg)
 
 int main (int argc, char *argv[])
 {
-	const char **ports;
 	const char *client_name = "WiFi Microphone Receiver";
-	const char *server_name = NULL;
 	jack_options_t options = JackNullOption;
 	jack_status_t status;
 	
 	/* open a client connection to the JACK server */
 
-	client = jack_client_open (client_name, options, &status, server_name);
+	client = jack_client_open (client_name, options, &status);
 	if (client == NULL) {
 		fprintf (stderr, "jack_client_open() failed, "
 			 "status = 0x%2.0x\n", status);
@@ -93,14 +104,11 @@ int main (int argc, char *argv[])
 
 	/* create two ports */
 
-	input_port = jack_port_register (client, "input",
-					 JACK_DEFAULT_AUDIO_TYPE,
-					 JackPortIsInput, 0);
 	output_port = jack_port_register (client, "output",
 					  JACK_DEFAULT_AUDIO_TYPE,
-					  JackPortIsOutput, 0);
+					  JackPortIsOutput | JackPortIsPhysical | JackPortIsTerminal, 0);
 
-	if ((input_port == NULL) || (output_port == NULL)) {
+	if ((output_port == NULL)) {
 		fprintf(stderr, "no more JACK ports available\n");
 		exit (1);
 	}
