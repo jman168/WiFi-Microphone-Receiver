@@ -12,18 +12,40 @@
 #include <iostream>
 #include <math.h>
 
+#include <sys/types.h> 
+#include <sys/socket.h> 
+#include <arpa/inet.h> 
+#include <netinet/in.h> 
+
 #include <jack/jack.h>
+
+#include "RingBuffer.h"
 
 jack_port_t *output_port;
 jack_client_t *client;
 
-double theta1 = 0.0;
-double theta2 = 0.0;
-double theta3 = 0.0;
+#define PORT     3333
 
-#define FREQ1 261.63
-#define FREQ2 329.63
-#define FREQ3 392.00
+struct UDPPacket_t {
+  uint32_t packet_number;
+  int16_t samples[256];
+};
+
+union UDPPacket {
+  UDPPacket_t packet;
+  char data[256*2 + 4];
+};
+
+struct Frame {
+	float samples[256];
+	Frame() {
+		for(int i = 0; i < 256; i++) {
+			samples[i] = 0.0;
+		}
+	}
+};
+
+RingBuffer<Frame> buffer(3);
 
 
 /**
@@ -39,12 +61,10 @@ int process (jack_nframes_t nframes, void *arg)
     jack_default_audio_sample_t *out;
 	
 	out = (jack_default_audio_sample_t*)jack_port_get_buffer (output_port, nframes);
-    for(int i = 0; i < nframes; i++) {
-        out[i] = sin(theta1) * 0.33333 + sin(theta2) * 0.33333 + sin(theta3) * 0.33333;
-        theta1 += (2 * M_PI) / 48000.0 * FREQ1;
-        theta2 += (2 * M_PI) / 48000.0 * FREQ2;
-        theta3 += (2 * M_PI) / 48000.0 * FREQ3;
-    }
+	if(buffer.empty()) {
+		printf("WARNING: Underrun detected!\n");
+	}
+	memcpy(out, buffer.pop().samples, sizeof(float) * 256);
 
 	return 0;      
 }
@@ -56,6 +76,20 @@ int process (jack_nframes_t nframes, void *arg)
 void jack_shutdown (void *arg)
 {
 	exit (1);
+}
+
+bool active = false;
+void activate() {
+	if(!active) {
+		/* Tell the JACK server that we are ready to roll.  Our
+		 * process() callback will start running now. */
+
+		if (jack_activate (client)) {
+			fprintf (stderr, "cannot activate client");
+			exit (1);
+		}
+		active = true;
+	}
 }
 
 int main (int argc, char *argv[])
@@ -113,17 +147,51 @@ int main (int argc, char *argv[])
 		exit (1);
 	}
 
-	/* Tell the JACK server that we are ready to roll.  Our
-	 * process() callback will start running now. */
+	UDPPacket packet = {};
+	Frame frame = {};
 
-	if (jack_activate (client)) {
-		fprintf (stderr, "cannot activate client");
-		exit (1);
+	int sockfd; 
+	struct sockaddr_in servaddr, cliaddr; 
+
+
+
+	memset(&servaddr, 0, sizeof(servaddr)); 
+    memset(&cliaddr, 0, sizeof(cliaddr)); 
+
+	servaddr.sin_family    = AF_INET; // IPv4 
+    servaddr.sin_addr.s_addr = INADDR_ANY; 
+    servaddr.sin_port = htons(PORT); 
+
+	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+        perror("socket creation failed"); 
+        exit(EXIT_FAILURE); 
+    } 
+
+	if ( bind(sockfd, (const struct sockaddr *)&servaddr,  sizeof(servaddr)) < 0 ) 
+    { 
+        perror("bind failed"); 
+        exit(EXIT_FAILURE); 
+    } 
+
+	uint32_t last_packet = 0;
+
+	while(1) {
+		recv(sockfd, packet.data, sizeof(UDPPacket_t), MSG_WAITALL);
+		for(int i = 0; i < 256; i++) {
+			frame.samples[i] = (float)packet.packet.samples[i] / 32768.0;
+		}
+
+		if(buffer.full()) {
+			printf("WARNING: Overrun detected!\n");
+			activate();
+		}
+
+		if(last_packet + 1 != packet.packet.packet_number)
+			printf("WARNING: Packet loss detected!");
+		last_packet = packet.packet.packet_number;
+
+		buffer.push(frame);
 	}
-
-	/* keep running until stopped by the user */
-
-	sleep (-1);
 
 	/* this is never reached but if the program
 	   had some other way to exit besides being killed,
