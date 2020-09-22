@@ -12,8 +12,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # find JACK
 find_package(JACK)
 
+# fine OPUS
+find_package(OPUS)
+
 # add include directorys
-include_directories(src/include ${JACK_INCLUDE_DIR})
+include_directories(src/include ${JACK_INCLUDE_DIR} ${OPUS_INCLUDE_DIR})
 
 # add source directorys
 file(GLOB_RECURSE SOURCES src/cpp/*.cpp) # project sources
@@ -22,4 +25,4 @@ file(GLOB_RECURSE SOURCES src/cpp/*.cpp) # project sources
 add_executable(WiFiMicrophoneReceiver ${SOURCES} src/WiFiMicrophoneReceiver.cpp)
 
 # link JACK
-target_link_libraries(WiFiMicrophoneReceiver ${JACK_LIBRARY})
+target_link_libraries(WiFiMicrophoneReceiver ${JACK_LIBRARY} ${OPUS_LIBRARY})
