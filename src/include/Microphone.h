@@ -14,7 +14,7 @@
 #include "ControlPackets.h"
 #include "AudioPacket.h"
 #include "AudioCircularBuffer.h"
-#include "opus/opus.h"
+#include "opus.h"
 
 #define TCP_BUFFER_SIZE 1024
 #define TIMEOUT 10000 //ms

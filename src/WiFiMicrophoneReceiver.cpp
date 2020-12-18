@@ -19,7 +19,7 @@
 #include <netinet/in.h> 
 
 #include <jack/jack.h>
-#include <opus/opus.h>
+#include "opus.h"
 
 #include "RingBuffer.h"
 
