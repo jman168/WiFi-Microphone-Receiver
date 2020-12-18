@@ -22,6 +22,8 @@ file(GLOB_RECURSE RPI_NRF24_SOURCES src/lib/rpi_nrf24/src/*.c)
 
 # add the executable
 add_executable(WiFiMicrophoneReceiver ${SOURCES} ${RPI_NRF24_SOURCES} src/WiFiMicrophoneReceiver.cpp)
+add_executable(Receiver ${SOURCES} ${RPI_NRF24_SOURCES} src/NRF24MicrophoneReceiver.cpp)
 
 # link libraries
 target_link_libraries(WiFiMicrophoneReceiver ${JACK_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${PROJECT_SOURCE_DIR}/src/lib/libopus/libopus.a)
+target_link_libraries(Receiver ${JACK_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${PROJECT_SOURCE_DIR}/src/lib/libopus/libopus.a)
